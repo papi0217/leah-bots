@@ -1,0 +1,33 @@
+[Unit]
+Description=LEAH Bots Platform - AI-Powered Telegram Bots
+Documentation=https://github.com/yourusername/leah-bots
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/leah-bots
+Environment="PATH=/home/ubuntu/leah-bots/venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/home/ubuntu/leah-bots/venv/bin/python3 /home/ubuntu/leah-bots/app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=leah-bots
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/home/ubuntu/leah-bots
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
