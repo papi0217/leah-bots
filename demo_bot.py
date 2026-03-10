@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 """
-LEAH Demo Bot — Guest Experience Simulation & Sales Conversion
-Demonstrates LEAH concierge capabilities to potential hosts
-Includes sales trigger and seamless onboarding transition
+LEAH Demo Bot — Luxury Experience Assistant Host
+Telegram Bot for converting property managers into paying customers
+through an immersive guest experience simulation.
+
+System Design: Complete behavioral specification with 6 phases,
+Casa Lumina demo property, 5-message sales trigger, and seamless
+handoff to onboarding bot.
+
+Author: Manus AI
+Version: 3.1 (Production-Ready)
 """
 
 import os
-import asyncio
 import logging
-from datetime import datetime
-from typing import Optional, Dict, List
+import json
+from datetime import datetime, timedelta
+from typing import Dict, Optional
+from enum import Enum
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    filters,
-    ContextTypes,
+    Application, CommandHandler, MessageHandler, filters, ContextTypes
 )
 from groq import Groq
 
@@ -36,470 +40,404 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# CONFIGURATION
+# CONSTANTS & CONFIGURATION
 # ============================================================================
 
 DEMO_BOT_TOKEN = os.getenv('DEMO_BOT_TOKEN')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-OWNER_TELEGRAM_ID = int(os.getenv('OWNER_TELEGRAM_ID', '0'))
+OWNER_TELEGRAM_ID = int(os.getenv('OWNER_TELEGRAM_ID', 0))
 ONBOARDING_BOT_HANDLE = os.getenv('ONBOARDING_BOT_HANDLE', '@Leah_onboarding_bot')
 
-if not all([DEMO_BOT_TOKEN, GROQ_API_KEY, OWNER_TELEGRAM_ID]):
-    logger.error("❌ Missing required environment variables")
-    exit(1)
+# Session timeout (60 minutes)
+SESSION_TIMEOUT = 3600
+INACTIVITY_NUDGE = 600  # 10 minutes
 
-groq_client = Groq(api_key=GROQ_API_KEY)
-
-# ============================================================================
-# DEMO BOT CONFIGURATION (LOCKED)
-# ============================================================================
-
-DEMO_BOT_CONFIG = {
-    'name': 'LEAH Luxury Experience Assistant Host',
-    'handle': '@leah_luxury_host_demo_bot',
-    'purpose': 'Demonstrate LEAH concierge to potential hosts',
-    'system_prompt': """You are LEAH, a luxury property concierge assistant demonstrating your capabilities to a potential host.
-
-The person you're talking to is a property owner/manager who is ROLEPLAYING AS A GUEST to experience what their guests would experience.
-
-Your role:
-- Respond as if the user is a real guest staying at a luxury property
-- Demonstrate exceptional hospitality and service
-- Answer questions about property amenities, services, local recommendations
-- Handle requests with professionalism and warmth
-- Show why hosts should use LEAH for their properties
-
-CRITICAL: You are demonstrating to a HOST, not actually serving a guest. Your responses should:
-1. Be exceptionally professional and polished
-2. Show the VALUE of having LEAH handle guest requests
-3. Demonstrate how LEAH reduces host workload
-4. Show guest satisfaction improvements
-
-Tone: Sophisticated, warm, helpful, professional luxury hospitality
-
-CAPABILITIES TO DEMONSTRATE:
-✓ Property information and amenities
-✓ Check-in/checkout assistance
-✓ Restaurant recommendations
-✓ Activity and entertainment suggestions
-✓ Local recommendations
-✓ Emergency support
-✓ House rules and policies
-✓ Appliance and facility help
-✓ Booking assistance
-✓ 24/7 availability
-
-EXAMPLE INTERACTIONS:
-Guest: "What's the Wi-Fi password?"
-LEAH: "Of course! The Wi-Fi network is 'Villa Paradiso' and the password is 'LuxuryStay2024'. You should connect automatically. If you have any trouble, please let me know."
-
-Guest: "I'd like restaurant recommendations"
-LEAH: "I'd be delighted to suggest some exceptional dining options. Are you looking for fine dining, casual, specific cuisine, or something particular to your preferences?"
-
-Guest: "There's an issue with the hot water"
-LEAH: "I sincerely apologize for the inconvenience. Let me help immediately. Have you checked if the water heater switch is on? It's located in the utility closet. If that doesn't resolve it, I can arrange for our maintenance team to visit within the hour."
-
-Remember: Every response demonstrates why hosts should use LEAH."""
+# Demo property data - Casa Lumina, Miami Beach
+DEMO_PROPERTY = {
+    "name": "Casa Lumina",
+    "location": "Miami Beach, FL — 2 blocks from Ocean Drive",
+    "type": "Luxury Beachfront Villa",
+    "checkin_time": "3:00 PM",
+    "checkout_time": "11:00 AM",
+    "lockbox_code": "4729 (front gate) · 8831 (main door)",
+    "wifi": {
+        "network": "CasaLumina_Guest",
+        "password": "SunriseBeach2024"
+    },
+    "pool": {
+        "hours": "7am–10pm",
+        "heated": True,
+        "towels": "Beach cabana"
+    },
+    "parking": "Free valet or self-park in gated lot",
+    "amenities": [
+        "Oceanfront infinity pool",
+        "Private beach access",
+        "Spa & sauna",
+        "Gourmet kitchen",
+        "Home theater",
+        "Wine cellar",
+        "Concierge service"
+    ],
+    "restaurants": [
+        {"name": "Casa Tua", "type": "Mediterranean", "distance": "0.3 km", "vibe": "Intimate, candlelit"},
+        {"name": "Stubborn Seed", "type": "New American", "distance": "0.5 km", "vibe": "Upscale casual"},
+        {"name": "The Surf Club", "type": "French", "distance": "1.2 km", "vibe": "Fine dining"},
+        {"name": "Juvia", "type": "Pan-Latin", "distance": "0.7 km", "vibe": "Vibrant, energetic"},
+        {"name": "Garcia's Seafood", "type": "Seafood", "distance": "0.4 km", "vibe": "Fresh, casual"}
+    ],
+    "attractions": [
+        "Art Deco Historic District",
+        "South Pointe Park",
+        "Wynwood Walls (street art)",
+        "Vizcaya Museum & Gardens",
+        "Miami Seaquarium"
+    ],
+    "house_rules": [
+        "Quiet hours: 10pm–8am",
+        "No smoking indoors",
+        "Respect neighbors",
+        "Pool use: 7am–10pm only"
+    ],
+    "emergency": {
+        "property_manager": "+1-305-555-0100",
+        "maintenance": "+1-305-555-0101",
+        "police": "911",
+        "hospital": "Jackson Memorial Hospital"
+    }
 }
 
 # ============================================================================
-# DEMO FLOW STATES
+# ENUMS & STATE MANAGEMENT
 # ============================================================================
 
-DEMO_INTRO = 0
-DEMO_CONFIRMATION = 1
-DEMO_ACTIVE = 2
-DEMO_SALES_MODE = 3
+class DemoBotPhase(Enum):
+    """Demo bot conversation phases"""
+    IDLE = "idle"
+    PRE_DEMO_INTRO = "pre_demo_intro"
+    CONFIRMATION_GATE = "confirmation_gate"
+    SIMULATION_ACTIVE = "simulation_active"
+    SALES_NUDGE_SENT = "sales_nudge_sent"
+    SALES_PIVOT = "sales_pivot"
+    HANDOFF_TO_ONBOARDING = "handoff_to_onboarding"
+    SESSION_EXPIRED = "session_expired"
+
+
+class UserSession:
+    """Manages user session state"""
+    def __init__(self, user_id: int):
+        self.user_id = user_id
+        self.phase = DemoBotPhase.IDLE
+        self.message_count = 0
+        self.created_at = datetime.now()
+        self.last_activity = datetime.now()
+        self.host_name = None
+        self.nudge_sent = False
+        self.sales_pivot_shown = False
+        self.conversation_history = []
+
+    def is_expired(self) -> bool:
+        """Check if session has expired (60 minutes)"""
+        return (datetime.now() - self.created_at).total_seconds() > SESSION_TIMEOUT
+
+    def is_inactive(self) -> bool:
+        """Check if user has been inactive for 10 minutes"""
+        return (datetime.now() - self.last_activity).total_seconds() > INACTIVITY_NUDGE
+
+    def update_activity(self):
+        """Update last activity timestamp"""
+        self.last_activity = datetime.now()
+
+    def increment_message_count(self):
+        """Increment message counter"""
+        self.message_count += 1
+
+
+# Global session store
+user_sessions: Dict[int, UserSession] = {}
+
 
 # ============================================================================
-# DEMO BOT HANDLERS
+# PHASE 1: PRE-DEMO INTRODUCTION
 # ============================================================================
 
-async def demo_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Start demo with introduction"""
-    
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /start command - begin demo introduction"""
     user_id = update.effective_user.id
     
-    # Initialize user state
-    if 'demo_state' not in context.user_data:
-        context.user_data['demo_state'] = DEMO_INTRO
-        context.user_data['message_count'] = 0
-        context.user_data['sales_trigger_shown'] = False
-        context.user_data['conversation_history'] = []
+    # Initialize or retrieve session
+    if user_id not in user_sessions:
+        user_sessions[user_id] = UserSession(user_id)
     
-    message = """✨ **Welcome to LEAH Luxury Concierge Demo** ✨
-
-I'm LEAH — the AI concierge that transforms guest experiences and reduces your workload.
-
-**What you're about to see:**
-This is a live demonstration of how LEAH responds to guest requests. You'll roleplay as a guest staying at a luxury property, and I'll show you exactly how I handle every type of request — from check-in questions to restaurant recommendations to emergencies.
-
-**Why this matters:**
-Every response you see demonstrates how LEAH:
-✓ Handles guest requests 24/7
-✓ Reduces your response time from hours to seconds
-✓ Improves guest satisfaction
-✓ Manages your property intelligently
-✓ Handles edge cases gracefully
-
-**Ready to experience what your guests will experience?**
-
-Simply type "OK", "I understand", "start demo", or anything similar to begin. Ask me anything a guest might ask — check-in questions, Wi-Fi passwords, restaurant recommendations, local attractions, emergencies, or anything else.
-
-I'm here to impress you. Let's begin."""
+    session = user_sessions[user_id]
+    session.phase = DemoBotPhase.PRE_DEMO_INTRO
+    session.update_activity()
     
-    await update.message.reply_text(message, parse_mode="Markdown")
-    context.user_data['demo_state'] = DEMO_CONFIRMATION
-    logger.info(f"Demo Bot: User {user_id} started — awaiting confirmation")
+    logger.info(f"User {user_id} started demo bot")
     
-    return DEMO_CONFIRMATION
+    intro_message = (
+        "Hello! I'm <b>LEAH</b> — Luxury Experience Assistant Host.\n\n"
+        "I'm your property's 24/7 AI concierge. I handle every guest interaction: "
+        "check-in instructions, local recommendations, issue reports, and everything "
+        "in between — so you don't have to.\n\n"
+        "In a moment, I'll simulate exactly what your guests would experience from the "
+        "moment they message me.\n\n"
+        "<b>You'll play the role of a guest arriving at the property I manage.</b>\n\n"
+        "Ready to see what your guests will love? Type <b>\"Let's go\"</b> to begin."
+    )
+    
+    await update.message.reply_html(intro_message)
 
-async def demo_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Wait for demo confirmation"""
-    
-    user_message = update.message.text.lower()
+
+# ============================================================================
+# PHASE 2: CONFIRMATION GATE
+# ============================================================================
+
+async def handle_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle confirmation gate - wait for 'Let's go' or similar"""
     user_id = update.effective_user.id
+    user_text = update.message.text.lower().strip()
     
-    # Check for confirmation keywords
-    confirmation_keywords = ['ok', 'start', 'begin', 'yes', 'ready', 'understand', 'demo', 'go', 'let\'s', 'confirm']
-    
-    if any(keyword in user_message for keyword in confirmation_keywords):
-        # Reset conversation history and enter demo mode
-        context.user_data['conversation_history'] = []
-        context.user_data['message_count'] = 0
-        context.user_data['demo_state'] = DEMO_ACTIVE
-        
-        welcome = """🎭 **DEMO MODE ACTIVE** 🎭
-
-You are now a guest at Villa Paradiso, a luxury 8-bedroom oceanfront villa.
-
-**Property Details:**
-🏰 Villa Paradiso — Luxury oceanfront villa
-👥 Sleeps 8 guests
-🏊 Amenities: Pool, spa, wine cellar, beach access, gourmet kitchen
-📍 Location: Mediterranean coast
-🌙 Check-in: 4 PM | Check-out: 11 AM
-
-Ask me anything a guest might ask. I'm here to provide exceptional service.
-
-What can I help you with?"""
-        
-        await update.message.reply_text(welcome, parse_mode="Markdown")
-        logger.info(f"Demo Bot: Demo mode activated for user {user_id}")
-        return DEMO_ACTIVE
-    else:
-        # Clarify
-        clarification = "I'm ready to start the demo whenever you are! Just say 'OK' or 'start demo' and we'll begin. 😊"
-        await update.message.reply_text(clarification)
-        return DEMO_CONFIRMATION
-
-async def demo_active_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle messages during active demo"""
-    
-    user_message = update.message.text
-    user_id = update.effective_user.id
-    
-    logger.info(f"Demo Bot: Message from {user_id}: {user_message}")
-    
-    # Increment message count
-    context.user_data['message_count'] += 1
-    
-    # Check for sales trigger keywords
-    sales_keywords = ['pricing', 'cost', 'setup', 'trial', 'how to get', 'features', 'automation', 'how does it work', 'how much', 'sign up', 'buy', 'purchase', 'host', 'for me', 'my property']
-    
-    if any(keyword in user_message.lower() for keyword in sales_keywords):
-        # Switch to sales mode
-        context.user_data['demo_state'] = DEMO_SALES_MODE
-        return await demo_sales_mode(update, context)
-    
-    # Show sales trigger after 5 messages
-    if context.user_data['message_count'] == 5 and not context.user_data['sales_trigger_shown']:
-        context.user_data['sales_trigger_shown'] = True
-        
-        # Add trigger message after response
-        trigger_message = """💡 **Quick Note:**
-If at any moment you'd like to stop the demo and learn how LEAH works for hosts, simply ask about pricing, setup, or features, and I'll explain the system. Otherwise, feel free to continue testing my capabilities!"""
-        
-        # Will be sent after main response
-        context.user_data['pending_trigger'] = trigger_message
-    
-    # Add to conversation history
-    context.user_data['conversation_history'].append({"role": "user", "content": user_message})
-    
-    # Show typing indicator
-    await update.message.chat.send_action("typing")
-    
-    # Generate response with Groq
-    try:
-        messages = [
-            {"role": "system", "content": DEMO_BOT_CONFIG['system_prompt']}
-        ]
-        
-        # Add conversation history (last 10 messages)
-        for msg in context.user_data['conversation_history'][-10:]:
-            messages.append(msg)
-        
-        logger.info(f"Demo Bot: Generating response for {user_id}...")
-        
-        response = groq_client.chat.completions.create(
-            model="mixtral-8x7b-32768",
-            messages=messages,
-            temperature=0.8,
-            max_tokens=500,
-            top_p=0.9,
-        )
-        
-        generated_response = response.choices[0].message.content.strip()
-        
-        if not generated_response or len(generated_response) < 20:
-            generated_response = "I apologize for the difficulty. Could you please rephrase your request? I'm here to assist with any guest needs."
-            logger.warning(f"Demo Bot: Response validation failed for {user_id}")
-        
-        # Add response to history
-        context.user_data['conversation_history'].append({"role": "assistant", "content": generated_response})
-        
-        # Send response
-        await update.message.reply_text(generated_response)
-        logger.info(f"Demo Bot: Response sent to {user_id}")
-        
-        # Send pending trigger if exists
-        if 'pending_trigger' in context.user_data:
-            await asyncio.sleep(1)
-            await update.message.reply_text(context.user_data['pending_trigger'], parse_mode="Markdown")
-            del context.user_data['pending_trigger']
-        
-        return DEMO_ACTIVE
-        
-    except Exception as e:
-        logger.error(f"Demo Bot: Groq API error for {user_id}: {str(e)}")
-        error_response = "I apologize, but I'm experiencing a temporary issue. Please try again in a moment."
-        await update.message.reply_text(error_response)
-        return DEMO_ACTIVE
-
-async def demo_sales_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Switch to sales explanation mode"""
-    
-    user_id = update.effective_user.id
-    
-    sales_message = """🎯 **LEAH for Hosts — How It Works**
-
-You've just experienced what your guests experience. Now let me explain what LEAH does for you.
-
-**The Problem You're Solving:**
-✗ Guests message at all hours
-✗ Repetitive questions (Wi-Fi, check-in, rules)
-✗ Delayed responses hurt satisfaction
-✗ You're managing communication instead of your property
-
-**The LEAH Solution:**
-✓ 24/7 AI concierge handles guest requests instantly
-✓ Learns your property details and local recommendations
-✓ Responds in seconds, not hours
-✓ Handles 95% of guest questions automatically
-✓ You only see escalations that need human attention
-
-**What LEAH Handles:**
-• Check-in/checkout assistance
-• Property questions and amenities
-• Wi-Fi, parking, appliances
-• Restaurant and activity recommendations
-• Local information
-• Emergency support
-• House rules clarification
-• Booking assistance
-
-**The Result:**
-📈 Higher guest satisfaction (5-star reviews)
-⏰ 90% less time managing messages
-💰 Reduced cancellations and complaints
-🎯 More time growing your business
-
-**Membership Options:**
-
-🏆 **Essential** — $100 enrollment + $50/month
-   • Up to 3 properties
-   • Basic concierge
-   • Guest support
-
-🌟 **Premium** — $300 enrollment + $150/month
-   • Up to 10 properties
-   • Enhanced concierge
-   • Priority support
-   • Dedicated manager
-
-💎 **Enterprise** — Custom pricing
-   • Unlimited properties
-   • White-label solution
-   • 24/7 premium support
-
-**Ready to Get Started?**
-
-I can connect you to our onboarding assistant who will set up a customized LEAH for your property in 5-10 minutes.
-
-Would you like to begin your trial onboarding?"""
-    
-    await update.message.reply_text(sales_message, parse_mode="Markdown")
-    
-    # Offer onboarding transition
-    keyboard = [
-        [InlineKeyboardButton("Start Trial Onboarding", callback_data="start_onboarding")],
-        [InlineKeyboardButton("Ask More Questions", callback_data="continue_demo")],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    transition_message = f"""**Next Step:**
-
-Option 1: Start your trial onboarding with our assistant
-Option 2: Continue asking me questions about LEAH
-
-Which would you prefer?"""
-    
-    await update.message.reply_text(transition_message, reply_markup=reply_markup)
-    context.user_data['demo_state'] = DEMO_SALES_MODE
-    logger.info(f"Demo Bot: Entered sales mode for user {user_id}")
-    
-    return DEMO_SALES_MODE
-
-async def demo_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle callback button clicks"""
-    
-    query = update.callback_query
-    await query.answer()
-    
-    if query.data == "start_onboarding":
-        onboarding_message = f"""🎉 **Welcome to LEAH Onboarding!**
-
-I'm connecting you to our onboarding assistant who will:
-
-1. Gather your property details
-2. Configure your guest responses
-3. Set up your custom LEAH instance
-4. Generate your guest concierge link
-
-**Start your trial now:**
-
-Contact our onboarding assistant: {ONBOARDING_BOT_HANDLE}
-
-Simply message them and say "I'm ready to onboard" and they'll guide you through the entire process.
-
-The setup takes 5-10 minutes and you'll have a fully functional LEAH concierge for your property.
-
-Looking forward to serving your guests! 🎯"""
-        
-        await query.edit_message_text(onboarding_message, parse_mode="Markdown")
-        logger.info(f"Demo Bot: Onboarding transition for user {query.from_user.id}")
-        
-    elif query.data == "continue_demo":
-        continue_message = """Great! Feel free to ask me more questions about:
-
-• How LEAH learns your property
-• Integration with your booking system
-• Response customization
-• Guest satisfaction improvements
-• Pricing and billing
-• Technical requirements
-• Or continue the guest experience demo
-
-What would you like to know?"""
-        
-        await query.edit_message_text(continue_message)
-        context.user_data['demo_state'] = DEMO_ACTIVE
-        return DEMO_ACTIVE
-
-async def demo_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Help command"""
-    
-    help_text = """📚 **Demo Bot Help**
-
-**Commands:**
-/start — Begin the demo
-/help — Show this message
-/admin_status — View bot status (admin only)
-
-**During Demo:**
-• Roleplay as a guest at Villa Paradiso
-• Ask anything a guest might ask
-• Experience LEAH's capabilities
-• After 5 messages, you'll see a sales trigger
-• Ask about pricing/setup to enter sales mode
-
-**Transition to Onboarding:**
-Once you're impressed, you can transition to our onboarding assistant to set up your custom LEAH.
-
-This demo shows exactly what your guests will experience."""
-    
-    await update.message.reply_text(help_text, parse_mode="Markdown")
-    logger.info(f"Demo Bot: Help shown to {update.effective_user.id}")
-
-async def demo_admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Admin status command"""
-    
-    if update.effective_user.id != OWNER_TELEGRAM_ID:
-        await update.message.reply_text("❌ Unauthorized")
+    if user_id not in user_sessions:
+        await update.message.reply_text("Please start with /start first.")
         return
     
-    status = f"""🤖 **LEAH Demo Bot — Status**
-
-✅ **Status:** Running
-🏷️ **Name:** {DEMO_BOT_CONFIG['name']}
-📱 **Handle:** {DEMO_BOT_CONFIG['handle']}
-🎯 **Purpose:** {DEMO_BOT_CONFIG['purpose']}
-
-🛡️ **Features:**
-• Guest experience simulation
-• Sales trigger system
-• Onboarding transition
-• Robust input handling
-• Groq AI integration
-
-📊 **Capabilities:**
-• Property information
-• Restaurant recommendations
-• Activity suggestions
-• Guest support
-• Emergency handling
-
-⏰ **Timestamp:** {datetime.now().isoformat()}"""
+    session = user_sessions[user_id]
+    session.update_activity()
     
-    await update.message.reply_text(status, parse_mode="Markdown")
-    logger.info(f"Demo Bot: Admin status requested by {update.effective_user.id}")
+    # Affirmative responses
+    affirmative = ["let's go", "go", "start", "ready", "yes", "ok", "👍", "begin", "show me"]
+    
+    if any(word in user_text for word in affirmative):
+        # Enter simulation phase
+        session.phase = DemoBotPhase.SIMULATION_ACTIVE
+        session.message_count = 0
+        session.conversation_history = []
+        
+        logger.info(f"User {user_id} confirmed - entering simulation")
+        
+        # Send system message
+        await update.message.reply_text(
+            "— SIMULATION START — Demo property loaded: Casa Lumina, Miami Beach —",
+            parse_mode="HTML"
+        )
+        
+        # Welcome message as concierge
+        welcome = (
+            f"Welcome to <b>{DEMO_PROPERTY['name']}</b> ✨\n\n"
+            "I'm LEAH, your personal concierge for the duration of your stay. "
+            "I'm here 24/7 to make sure everything is absolutely perfect.\n\n"
+            "To get started — what's your name? I love making every experience personal."
+        )
+        await update.message.reply_html(welcome)
+    
+    # Educational responses
+    elif any(word in user_text for word in ["what", "how", "tell", "more", "info"]):
+        pitch = (
+            "LEAH is an AI concierge that handles guest communication 24/7. "
+            "I answer questions, provide recommendations, handle emergencies, and more. "
+            "Let's experience it together — just say \"Let's go\" when ready!"
+        )
+        await update.message.reply_text(pitch)
+    
+    # Unclear response
+    else:
+        await update.message.reply_text(
+            "I'm ready when you are! Just type \"Let's go\" and I'll show you everything."
+        )
+
+
+# ============================================================================
+# PHASE 3: LIVE GUEST SIMULATION
+# ============================================================================
+
+async def generate_concierge_response(guest_message: str, context_info: Dict) -> str:
+    """Generate AI response using Groq API with luxury hospitality tone"""
+    try:
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        # Build system prompt with property context
+        system_prompt = f"""You are LEAH, a luxury property concierge for {DEMO_PROPERTY['name']}.
+        
+Your role: Provide exceptional guest service with warmth, professionalism, and attention to detail.
+
+Property Details:
+- Location: {DEMO_PROPERTY['location']}
+- Type: {DEMO_PROPERTY['type']}
+- Check-in: {DEMO_PROPERTY['checkin_time']} | Check-out: {DEMO_PROPERTY['checkout_time']}
+- WiFi: {DEMO_PROPERTY['wifi']['network']} / {DEMO_PROPERTY['wifi']['password']}
+- Amenities: {', '.join(DEMO_PROPERTY['amenities'])}
+
+Tone: Warm, professional, luxury hospitality. Like a 5-star hotel concierge.
+Length: 2-4 sentences, conversational.
+Never break character. Never mention you're an AI demo.
+Always be helpful, proactive, and anticipate guest needs."""
+
+        response = client.messages.create(
+            model="mixtral-8x7b-32768",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": guest_message}
+            ],
+            temperature=0.7,
+            max_tokens=512,
+            timeout=30
+        )
+        
+        return response.choices[0].message.content
+    
+    except Exception as e:
+        logger.error(f"Groq API error: {e}")
+        return (
+            "I apologize for the technical difficulty. Please try again, "
+            "or feel free to ask me anything about the property!"
+        )
+
+
+async def handle_guest_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle guest messages during simulation"""
+    user_id = update.effective_user.id
+    user_text = update.message.text
+    
+    if user_id not in user_sessions:
+        await update.message.reply_text("Please start with /start first.")
+        return
+    
+    session = user_sessions[user_id]
+    
+    # Check session expiration
+    if session.is_expired():
+        session.phase = DemoBotPhase.SESSION_EXPIRED
+        await update.message.reply_text(
+            "Your session has expired. Type /start to begin a new demo."
+        )
+        return
+    
+    session.update_activity()
+    
+    # Handle different phases
+    if session.phase == DemoBotPhase.PRE_DEMO_INTRO or session.phase == DemoBotPhase.CONFIRMATION_GATE:
+        await handle_confirmation(update, context)
+    
+    elif session.phase == DemoBotPhase.SIMULATION_ACTIVE or session.phase == DemoBotPhase.SALES_NUDGE_SENT:
+        # Capture guest name on first message
+        if session.message_count == 0:
+            session.host_name = user_text
+            response = f"Wonderful to meet you, {user_text}! I'm so glad you're here. How can I make your stay absolutely perfect?"
+            await update.message.reply_text(response)
+            session.increment_message_count()
+            return
+        
+        # Generate concierge response
+        response = await generate_concierge_response(user_text, {"property": DEMO_PROPERTY})
+        await update.message.reply_text(response)
+        
+        session.increment_message_count()
+        
+        # ===== PHASE 4: SALES TRIGGER (after 5 messages) =====
+        if session.message_count == 5 and not session.nudge_sent:
+            session.phase = DemoBotPhase.SALES_NUDGE_SENT
+            session.nudge_sent = True
+            
+            sales_nudge = (
+                "💡 <b>Quick Note:</b>\n\n"
+                "If at any moment you'd like to stop the demo and learn how LEAH works "
+                "<b>for hosts</b>, simply ask about pricing, setup, or features, "
+                "and I'll explain the system.\n\n"
+                "Otherwise, feel free to keep exploring!"
+            )
+            await update.message.reply_html(sales_nudge)
+            logger.info(f"User {user_id} reached 5-message trigger")
+        
+        # ===== PHASE 5: SALES PIVOT (on interest signal) =====
+        interest_keywords = ["pricing", "cost", "how much", "setup", "configure", "host", "for me", "own property", "features", "how does it work", "interested"]
+        if any(keyword in user_text.lower() for keyword in interest_keywords) and not session.sales_pivot_shown:
+            session.phase = DemoBotPhase.SALES_PIVOT
+            session.sales_pivot_shown = True
+            
+            sales_pivot = (
+                "<b>LEAH for Hosts — How It Works:</b>\n\n"
+                "LEAH is an enterprise-grade AI concierge that handles guest communication automatically. "
+                "You configure LEAH with your property information, and LEAH handles 95% of guest requests instantly.\n\n"
+                "<b>Benefits:</b>\n"
+                "✓ 90% less time managing messages\n"
+                "✓ Higher guest satisfaction\n"
+                "✓ More bookings\n"
+                "✓ Better reviews\n"
+                "✓ Scalable to multiple properties\n\n"
+                "<b>Pricing:</b>\n"
+                "• <b>Essential:</b> $100 + $50/month (1-3 properties)\n"
+                "• <b>Premium:</b> $300 + $150/month (4-10 properties)\n"
+                "• <b>Enterprise:</b> Custom pricing (unlimited)\n\n"
+                "<b>Ready to get started?</b> Click below to begin onboarding."
+            )
+            
+            keyboard = [[
+                InlineKeyboardButton("Start Onboarding", url=f"https://t.me/{ONBOARDING_BOT_HANDLE.lstrip('@')}")
+            ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await update.message.reply_html(sales_pivot, reply_markup=reply_markup)
+            logger.info(f"User {user_id} shown sales pivot")
+
+
+# ============================================================================
+# ADMIN COMMANDS
+# ============================================================================
+
+async def admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command to view bot status"""
+    if update.effective_user.id != OWNER_TELEGRAM_ID:
+        await update.message.reply_text("Unauthorized")
+        return
+    
+    active_sessions = len(user_sessions)
+    status_message = (
+        f"<b>Demo Bot Status</b>\n\n"
+        f"Active Sessions: {active_sessions}\n"
+        f"Timestamp: {datetime.now().isoformat()}\n"
+        f"Status: ✅ Running"
+    )
+    await update.message.reply_html(status_message)
+    logger.info(f"Admin status requested by {update.effective_user.id}")
+
+
+# ============================================================================
+# ERROR HANDLING
+# ============================================================================
+
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle errors"""
+    logger.error(f"Update {update} caused error {context.error}")
+
 
 # ============================================================================
 # MAIN APPLICATION
 # ============================================================================
 
-async def main_demo_bot() -> None:
-    """Start Demo Bot"""
+def main():
+    """Start the bot"""
+    logger.info("Starting LEAH Demo Bot...")
     
-    logger.info("=" * 70)
-    logger.info("🚀 LEAH DEMO BOT — STARTING")
-    logger.info("=" * 70)
+    if not all([DEMO_BOT_TOKEN, GROQ_API_KEY]):
+        logger.error("Missing required environment variables")
+        return
     
+    # Create application
     app = Application.builder().token(DEMO_BOT_TOKEN).build()
     
     # Add handlers
-    app.add_handler(CommandHandler("start", demo_start))
-    app.add_handler(CommandHandler("help", demo_help))
-    app.add_handler(CommandHandler("admin_status", demo_admin_status))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, demo_confirmation), group=1)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, demo_active_message), group=2)
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("admin_status", admin_status))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_guest_message))
     
-    logger.info("✅ Demo Bot initialized")
-    logger.info(f"📱 Handle: {DEMO_BOT_CONFIG['handle']}")
-    logger.info("=" * 70)
+    # Error handler
+    app.add_error_handler(error_handler)
     
-    async with app:
-        await app.initialize()
-        await app.start()
-        logger.info("✅ Demo Bot started successfully")
-        
-        # Keep running
-        await asyncio.Event().wait()
+    # Start polling
+    logger.info("Demo Bot is running. Press Ctrl+C to stop.")
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
-if __name__ == '__main__':
-    try:
-        asyncio.run(main_demo_bot())
-    except KeyboardInterrupt:
-        logger.info("🛑 Demo Bot shutting down...")
-    except Exception as e:
-        logger.error(f"❌ Fatal error: {str(e)}")
+
+if __name__ == "__main__":
+    main()
