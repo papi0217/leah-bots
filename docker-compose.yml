@@ -1,0 +1,66 @@
+version: '3.9'
+
+services:
+  leah-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: leah-bots
+    restart: unless-stopped
+    environment:
+      # Bot tokens
+      DEMO_BOT_TOKEN: ${DEMO_BOT_TOKEN}
+      ONBOARDING_BOT_TOKEN: ${ONBOARDING_BOT_TOKEN}
+      
+      # API keys
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      WEATHER_API_KEY: ${WEATHER_API_KEY}
+      YELP_API_KEY: ${YELP_API_KEY:-PLACEHOLDER}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-PLACEHOLDER}
+      
+      # Owner and group IDs
+      OWNER_TELEGRAM_ID: ${OWNER_TELEGRAM_ID}
+      HOST_GROUP_CHAT_ID: ${HOST_GROUP_CHAT_ID:-}
+      
+      # Payment (optional)
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-PLACEHOLDER}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-PLACEHOLDER}
+      
+      # Logging
+      LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: 1
+    
+    volumes:
+      # Persist database and logs
+      - ./leah_concierge.db:/app/leah_concierge.db
+      - ./logs:/app/logs
+      - ./knowledge_base:/app/knowledge_base
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; exit(0 if os.path.exists('leah_concierge.db') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  leah_data:
+    driver: local
