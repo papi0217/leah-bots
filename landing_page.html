@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEAH - AI Luxury Concierge for Property Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 30px;
+            transition: opacity 0.3s;
+        }
+
+        nav a:hover {
+            opacity: 0.8;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .hero-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .hero p {
+            font-size: 20px;
+            margin-bottom: 40px;
+            opacity: 0.95;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%);
+            color: #1a1a2e;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 16px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+        }
+
+        /* Audio Player Section */
+        .audio-section {
+            background: white;
+            padding: 60px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .audio-container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .audio-container h2 {
+            font-size: 32px;
+            margin-bottom: 30px;
+            color: #1a1a2e;
+        }
+
+        .audio-player {
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        audio {
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+        }
+
+        .audio-description {
+            color: #666;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+
+        /* Features Section */
+        .features {
+            background: white;
+            padding: 80px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .features-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .features h2 {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 60px;
+            color: #1a1a2e;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            border-left: 4px solid #d4af37;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .feature-card h3 {
+            color: #1a1a2e;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .feature-card p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        /* Benefits Section */
+        .benefits {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 80px 20px;
+        }
+
+        .benefits-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .benefits h2 {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+
+        .benefit-card {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            transition: transform 0.3s, background 0.3s;
+        }
+
+        .benefit-card:hover {
+            transform: translateY(-5px);
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        .benefit-card h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .benefit-card p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Reviews Section */
+        .reviews {
+            background: white;
+            padding: 80px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .reviews-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .reviews h2 {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 60px;
+            color: #1a1a2e;
+        }
+
+        .reviews-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .review-card {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            border-top: 4px solid #d4af37;
+        }
+
+        .review-stars {
+            color: #d4af37;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .review-text {
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.8;
+            font-style: italic;
+        }
+
+        .review-author {
+            color: #1a1a2e;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .review-title {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        /* Pricing Section */
+        .pricing {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 80px 20px;
+        }
+
+        .pricing-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .pricing h2 {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .pricing-card {
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 10px;
+            border: 2px solid #d4af37;
+            text-align: center;
+            transition: transform 0.3s, background 0.3s;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-10px);
+            background: rgba(212, 175, 55, 0.15);
+        }
+
+        .pricing-card h3 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .pricing-card .price {
+            font-size: 32px;
+            font-weight: bold;
+            color: #d4af37;
+            margin-bottom: 20px;
+        }
+
+        .pricing-card ul {
+            list-style: none;
+            margin-bottom: 30px;
+            text-align: left;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .pricing-card li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .pricing-card li:last-child {
+            border-bottom: none;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            background: white;
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .cta-section h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #1a1a2e;
+        }
+
+        .cta-section p {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Footer */
+        footer {
+            background: #1a1a2e;
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+            border-top: 1px solid #d4af37;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 32px;
+            }
+
+            .hero p {
+                font-size: 16px;
+            }
+
+            .features h2,
+            .benefits h2,
+            .reviews h2,
+            .pricing h2,
+            .cta-section h2 {
+                font-size: 28px;
+            }
+
+            nav {
+                display: none;
+            }
+
+            .features-grid,
+            .benefits-grid,
+            .reviews-grid,
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="logo">✨ LEAH</div>
+            <nav>
+                <a href="#features">Features</a>
+                <a href="#benefits">Benefits</a>
+                <a href="#reviews">Reviews</a>
+                <a href="#pricing">Pricing</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <h1>The AI Concierge That Transforms Luxury Property Management</h1>
+            <p>Automate guest communication. Improve satisfaction. Grow your business.</p>
+            <a href="#audio" class="cta-button">Listen to the Full Story</a>
+        </div>
+    </section>
+
+    <!-- Audio Section -->
+    <section class="audio-section" id="audio">
+        <div class="audio-container">
+            <h2>Experience LEAH</h2>
+            <div class="audio-player">
+                <audio controls>
+                    <source src="https://d2xsxph8kpxj0f.cloudfront.net/310519663411109161/aFAYVmwMgT5AGQ6riQM4G4/leah_product_narration.wav" type="audio/wav">
+                    Your browser does not support the audio element.
+                </audio>
+                <p class="audio-description">
+                    Listen to our complete product overview featuring features, benefits, customer reviews, and pricing information. Duration: approximately 8 minutes.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <h2>Powerful Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>🕐 24/7 Availability</h3>
+                    <p>LEAH is always available. Guests receive instant responses at any time, creating an exceptional experience.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🏠 Property Intelligence</h3>
+                    <p>LEAH learns your property completely — amenities, rules, Wi-Fi, parking, and local recommendations.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>✨ Luxury Language</h3>
+                    <p>LEAH responds with sophisticated, professional hospitality language that reflects your property's quality.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔄 Smart Escalation</h3>
+                    <p>Complex issues are escalated to you automatically. You see only what matters.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 Multi-Property</h3>
+                    <p>Manage one property or ten properties with the same system. LEAH scales with your business.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🗺️ Local Expertise</h3>
+                    <p>LEAH becomes an expert on your local area, providing personalized recommendations to guests.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⭐ Satisfaction Boost</h3>
+                    <p>Instant responses and intelligent service directly improve guest satisfaction and reviews.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⚡ Rapid Response</h3>
+                    <p>LEAH responds in seconds, not hours. This transforms the guest experience.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits Section -->
+    <section class="benefits" id="benefits">
+        <div class="benefits-container">
+            <h2>Real Business Benefits</h2>
+            <div class="benefits-grid">
+                <div class="benefit-card">
+                    <h3>90% Less Time</h3>
+                    <p>Stop spending hours managing messages. LEAH handles 95% of guest requests automatically.</p>
+                </div>
+                <div class="benefit-card">
+                    <h3>Higher Satisfaction</h3>
+                    <p>Instant responses create happier guests. Happier guests leave better reviews and book again.</p>
+                </div>
+                <div class="benefit-card">
+                    <h3>More Bookings</h3>
+                    <p>Positive reviews attract new guests. Better service increases your booking rate.</p>
+                </div>
+                <div class="benefit-card">
+                    <h3>Fewer Cancellations</h3>
+                    <p>Supported guests don't cancel. Exceptional service reduces cancellation rates.</p>
+                </div>
+                <div class="benefit-card">
+                    <h3>Easy Scaling</h3>
+                    <p>Add more properties without hiring more staff. LEAH scales with your business.</p>
+                </div>
+                <div class="benefit-card">
+                    <h3>Competitive Edge</h3>
+                    <p>Most competitors still manage messages manually. You'll have a significant advantage.</p>
+                </div>
+                <div class="benefit-card">
+                    <h3>Business Growth</h3>
+                    <p>Focus on strategy instead of operations. LEAH removes the operational burden.</p>
+                </div>
+                <div class="benefit-card">
+                    <h3>Peace of Mind</h3>
+                    <p>Never miss a message. Consistent, excellent service every single time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Reviews Section -->
+    <section class="reviews" id="reviews">
+        <div class="reviews-container">
+            <h2>What Property Managers Are Saying</h2>
+            <div class="reviews-grid">
+                <div class="review-card">
+                    <div class="review-stars">★★★★★</div>
+                    <p class="review-text">"LEAH has been a game-changer for my business. I manage five vacation properties, and before LEAH, I was spending three hours every single day responding to guest messages. Now, LEAH handles ninety-five percent of those messages automatically. My five-star review rate has increased by forty percent."</p>
+                    <div class="review-author">Sarah Martinez</div>
+                    <div class="review-title">Property Manager, Miami</div>
+                </div>
+
+                <div class="review-card">
+                    <div class="review-stars">★★★★★</div>
+                    <p class="review-text">"I own three luxury villas on Maui, and guest expectations are extremely high. Before LEAH, I was worried about response time. Now, LEAH responds instantly. Guests are amazed by the service. They feel like they have a personal concierge. This has directly translated to higher booking rates and better reviews."</p>
+                    <div class="review-author">James Chen</div>
+                    <div class="review-title">Luxury Villa Owner, Maui</div>
+                </div>
+
+                <div class="review-card">
+                    <div class="review-stars">★★★★★</div>
+                    <p class="review-text">"We run a boutique hotel with thirty rooms, and managing guest communication was our biggest operational challenge. LEAH has eliminated that challenge. Our staff now focuses on guest experience rather than message management. Guest satisfaction has improved dramatically."</p>
+                    <div class="review-author">Patricia Gonzalez</div>
+                    <div class="review-title">Boutique Hotel Manager, Barcelona</div>
+                </div>
+
+                <div class="review-card">
+                    <div class="review-stars">★★★★★</div>
+                    <p class="review-text">"I manage a portfolio of fifty properties across California. Before LEAH, we had a team of three people managing guest communication. Now, LEAH handles most of it automatically. We've saved over one hundred thousand dollars annually in labor costs."</p>
+                    <div class="review-author">Michael Thompson</div>
+                    <div class="review-title">Property Management Company Owner, California</div>
+                </div>
+
+                <div class="review-card">
+                    <div class="review-stars">★★★★★</div>
+                    <p class="review-text">"I've been a Superhost for five years, and maintaining that status requires exceptional guest service. LEAH has made this easier than ever. My response time is now measured in seconds instead of hours. I've maintained my Superhost status and actually improved my ratings."</p>
+                    <div class="review-author">Elena Rodriguez</div>
+                    <div class="review-title">Airbnb Superhost, Barcelona</div>
+                </div>
+
+                <div class="review-card">
+                    <div class="review-stars">★★★★★</div>
+                    <p class="review-text">"Our resort caters to high-net-worth individuals with extremely high expectations. LEAH understands luxury hospitality. Guests often don't realize they're talking to an AI — they think they're talking to a human concierge. That's how good LEAH is."</p>
+                    <div class="review-author">David Kim</div>
+                    <div class="review-title">Luxury Resort Manager, Thailand</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing" id="pricing">
+        <div class="pricing-container">
+            <h2>Simple, Transparent Pricing</h2>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3>Essential</h3>
+                    <div class="price">$100 + $50/mo</div>
+                    <ul>
+                        <li>✓ Up to 3 properties</li>
+                        <li>✓ 24/7 guest support</li>
+                        <li>✓ Property configuration</li>
+                        <li>✓ Local recommendations</li>
+                        <li>✓ Basic analytics</li>
+                    </ul>
+                    <a href="#" class="cta-button">Get Started</a>
+                </div>
+
+                <div class="pricing-card">
+                    <h3>Premium</h3>
+                    <div class="price">$300 + $150/mo</div>
+                    <ul>
+                        <li>✓ Up to 10 properties</li>
+                        <li>✓ Priority support</li>
+                        <li>✓ Advanced analytics</li>
+                        <li>✓ Custom branding</li>
+                        <li>✓ Dedicated manager</li>
+                    </ul>
+                    <a href="#" class="cta-button">Get Started</a>
+                </div>
+
+                <div class="pricing-card">
+                    <h3>Enterprise</h3>
+                    <div class="price">Custom</div>
+                    <ul>
+                        <li>✓ Unlimited properties</li>
+                        <li>✓ White-label solution</li>
+                        <li>✓ 24/7 premium support</li>
+                        <li>✓ Custom integrations</li>
+                        <li>✓ Strategic consulting</li>
+                    </ul>
+                    <a href="#" class="cta-button">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-section-container">
+            <h2>Ready to Transform Your Business?</h2>
+            <p>Start your trial today. Configure your property in 5 minutes. See the difference LEAH makes immediately.</p>
+            <a href="#" class="cta-button">Start Your Free Trial</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 LEAH Luxury Concierge. All rights reserved. | Privacy Policy | Terms of Service</p>
+    </footer>
+</body>
+</html>
